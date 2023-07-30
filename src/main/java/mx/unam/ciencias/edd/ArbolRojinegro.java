@@ -31,7 +31,8 @@ public class ArbolRojinegro<T extends Comparable<T>>
          * @param elemento el elemento del vértice.
          */
         public VerticeRojinegro(T elemento) {
-            // Aquí va su código.
+            super(elemento);
+            color = Color.NINGUNO; 
         }
 
         /**
@@ -39,7 +40,9 @@ public class ArbolRojinegro<T extends Comparable<T>>
          * @return una representación en cadena del vértice rojinegro.
          */
         @Override public String toString() {
-            // Aquí va su código.
+            if(color == Color.ROJO)
+                return "R{" + elemento.toString() + "}";
+            return "N{" + elemento.toString() + "}";
         }
 
         /**
@@ -57,7 +60,7 @@ public class ArbolRojinegro<T extends Comparable<T>>
                 return false;
             @SuppressWarnings("unchecked")
                 VerticeRojinegro vertice = (VerticeRojinegro)objeto;
-            // Aquí va su código.
+            return (color == vertice.color && super.equals(objeto));
         }
     }
 
@@ -84,7 +87,7 @@ public class ArbolRojinegro<T extends Comparable<T>>
      * @return un nuevo vértice rojinegro con el elemento recibido dentro del mismo.
      */
     @Override protected Vertice nuevoVertice(T elemento) {
-        // Aquí va su código.
+        return new VerticeRojinegro(elemento); 
     }
 
     /**
@@ -95,7 +98,10 @@ public class ArbolRojinegro<T extends Comparable<T>>
      *         VerticeRojinegro}.
      */
     public Color getColor(VerticeArbolBinario<T> vertice) {
-        // Aquí va su código.
+        if(vertice == null || !(vertice instanceof ArbolRojinegro.VerticeRojinegro))
+            throw new ClassCastException("El vertice recibido es invalido");
+        VerticeRojinegro v = (VerticeRojinegro) vertice; 
+        return v.color;
     }
 
     /**
@@ -105,7 +111,52 @@ public class ArbolRojinegro<T extends Comparable<T>>
      * @param elemento el elemento a agregar.
      */
     @Override public void agrega(T elemento) {
-        // Aquí va su código.
+        super.agrega(elemento); 
+        VerticeRojinegro v = (VerticeRojinegro) ultimoAgregado; 
+        v.color = Color.ROJO; 
+        rebalanceoAgrega(v);
+    }
+
+    private void rebalanceoAgrega(VerticeRojinegro v){
+
+        if(v.padre == null){
+            v.color = Color.NEGRO; 
+            return; 
+        }
+
+        if(!esRojo(getPadre(v)))
+            return; 
+
+        VerticeRojinegro tio = getTio(v);
+        VerticeRojinegro padre = getPadre(v); 
+        VerticeRojinegro abuelo = getAbuelo(v);
+
+        if(tio != null && esRojo(tio)){
+            tio.color = padre.color = Color.NEGRO; 
+            abuelo.color = Color.ROJO; 
+            rebalanceoAgrega(abuelo);
+            return; 
+        }
+
+        if( (!esIzquierdo(padre) && esIzquierdo(v)) || (esIzquierdo(padre) && !esIzquierdo(v))){
+            if(esIzquierdo(padre))
+                super.giraIzquierda(padre);
+            else 
+                super.giraDerecha(padre);
+
+            VerticeRojinegro aux = v; 
+            v = (VerticeRojinegro)padre; 
+            padre = aux;
+        }
+
+        padre.color = Color.NEGRO; 
+        abuelo.color = Color.ROJO; 
+
+        if(esIzquierdo(v))
+            super.giraDerecha(abuelo);  
+        else 
+            super.giraIzquierda(abuelo);
+
     }
 
     /**
@@ -115,7 +166,159 @@ public class ArbolRojinegro<T extends Comparable<T>>
      * @param elemento el elemento a eliminar del árbol.
      */
     @Override public void elimina(T elemento) {
-        // Aquí va su código.
+        VerticeRojinegro aEliminar = (VerticeRojinegro)vertice(busca(elemento));
+
+        if(aEliminar == null)
+            return; 
+
+        elementos--; 
+
+        if(aEliminar.izquierdo != null && aEliminar.derecho != null){
+            aEliminar = (VerticeRojinegro)intercambiaEliminable(aEliminar);
+        }
+
+        VerticeRojinegro fantasma = null;
+        VerticeRojinegro hijo = null; 
+
+        if(aEliminar.izquierdo == null && aEliminar.derecho == null){
+            fantasma = (VerticeRojinegro)nuevoVertice(null);
+            fantasma.color = Color.NEGRO; 
+            fantasma.padre = aEliminar; 
+            aEliminar.izquierdo = fantasma; 
+            hijo = fantasma; 
+        }
+        else{
+            if(aEliminar.izquierdo != null)
+                hijo = (VerticeRojinegro) aEliminar.izquierdo;
+            else
+                hijo = (VerticeRojinegro) aEliminar.derecho; 
+        }
+
+
+        eliminaVertice(aEliminar);
+        
+        if(hijo.color == Color.ROJO || aEliminar.color == Color.ROJO)
+            hijo.color = Color.NEGRO; 
+        else
+            rebalanceoElimina(hijo);
+
+        if(fantasma != null)
+            eliminaVertice(fantasma);
+        
+    }
+
+    private void rebalanceoElimina(VerticeRojinegro vertice){
+        
+        if(vertice.padre == null)
+            return; 
+
+        VerticeRojinegro padre = getPadre(vertice);
+        VerticeRojinegro hermano = getHermano(vertice);
+
+        if(esRojo(hermano)){
+            padre.color = Color.ROJO;
+            hermano.color = Color.NEGRO; 
+            
+            if(esIzquierdo(vertice))
+                super.giraIzquierda(padre);
+            else
+                super.giraDerecha(padre);
+
+            padre = getPadre(vertice);
+            hermano = getHermano(vertice); 
+        }
+
+        VerticeRojinegro sobrinoIzq = (VerticeRojinegro)hermano.izquierdo; 
+        VerticeRojinegro sobrinoDer = (VerticeRojinegro)hermano.derecho; 
+
+        if( !esRojo(padre) && !esRojo(hermano) && !esRojo(sobrinoDer) && !esRojo(sobrinoIzq)){
+            hermano.color = Color.ROJO; 
+            rebalanceoElimina(padre);
+            return; 
+        }
+        
+        if( esRojo(padre) && !esRojo(hermano) && !esRojo(sobrinoDer) && !esRojo(sobrinoIzq)){
+            hermano.color = Color.ROJO; 
+            padre.color = Color.NEGRO; 
+            return; 
+        }
+
+        if( (esIzquierdo(vertice) && esRojo(sobrinoIzq) && !esRojo(sobrinoDer)) ||
+            !esIzquierdo(vertice) && !esRojo(sobrinoIzq) && esRojo(sobrinoDer)){
+
+                hermano.color = Color.ROJO; 
+
+                if(esRojo(sobrinoIzq))
+                    sobrinoIzq.color = Color.NEGRO; 
+                
+                if(esRojo(sobrinoDer))
+                    sobrinoDer.color = Color.NEGRO; 
+
+                if(esIzquierdo(vertice))
+                    super.giraDerecha(hermano);
+                else    
+                    super.giraIzquierda(hermano);
+
+                hermano = getHermano(vertice);
+                sobrinoIzq = (VerticeRojinegro)hermano.izquierdo; 
+                sobrinoDer = (VerticeRojinegro)hermano.derecho; 
+            }
+
+        hermano.color = padre.color; 
+        padre.color = Color.NEGRO; 
+
+        if(esIzquierdo(vertice)){
+            sobrinoDer.color = Color.NEGRO; 
+            super.giraIzquierda(padre);
+        }
+        else {
+            sobrinoIzq.color = Color.NEGRO; 
+            super.giraDerecha(padre);
+        }
+
+    }
+
+
+    private VerticeRojinegro getPadre(VerticeRojinegro v){
+        if(v == null)
+            return null; 
+        return (VerticeRojinegro) v.padre; 
+    }
+
+    private VerticeRojinegro getAbuelo(VerticeRojinegro v){
+        VerticeRojinegro padre = getPadre(v); 
+        return getPadre(padre);
+    }
+
+    private VerticeRojinegro getTio(VerticeRojinegro v){
+        VerticeRojinegro padre = getPadre(v); 
+        VerticeRojinegro abuelo = getAbuelo(v);
+        if(abuelo == null)
+            return null; 
+        if(abuelo.izquierdo == padre)
+            return (VerticeRojinegro) abuelo.derecho; 
+        return (VerticeRojinegro) abuelo.izquierdo; 
+
+    }
+
+    private VerticeRojinegro getHermano(VerticeRojinegro v){
+        VerticeRojinegro padre = getPadre(v);
+        if(padre == null)
+            return null; 
+        if(padre.izquierdo == v)
+            return (VerticeRojinegro)padre.derecho; 
+        return (VerticeRojinegro)padre.izquierdo; 
+    }
+
+    private boolean esIzquierdo(VerticeRojinegro v){
+        VerticeRojinegro padre = getPadre(v); 
+        if(padre.izquierdo == v)
+            return true; 
+        return false; 
+    }
+
+    private boolean esRojo(VerticeRojinegro vertice){
+        return (vertice != null && vertice.color == Color.ROJO);
     }
 
     /**
